@@ -47,6 +47,9 @@ export interface OrderProps {
   advancePaymentRef?: string;
   balancePaymentRef?: string;
   notes?: string;
+  delayReason?: string;
+  proposedDeliveryDate?: Date;
+  delayStatus?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -94,7 +97,7 @@ export class Order {
       deliveryMode: params.deliveryMode,
       deliveryAddress: params.deliveryAddress,
       measurementsSnapshot: params.measurementsSnapshot,
-      orderStatus: OrderStatus.DEVIS_A_ACCEPTER,
+      orderStatus: OrderStatus.EN_ATTENTE_COUTURIER,
       paymentStatus: PaymentStatus.AUCUN_PAIEMENT,
       confectionStep: ConfectionStep.NON_COMMENCEE,
       deliveryStatus: DeliveryStatus.A_DEFINIR,
@@ -139,6 +142,42 @@ export class Order {
   public get balancePaymentRef(): string | undefined { return this.props.balancePaymentRef; }
   public get createdAt(): Date { return this.props.createdAt; }
   public get updatedAt(): Date { return this.props.updatedAt; }
+
+  /**
+   * Validation de la commande et émission du devis chiffré par le couturier
+   * Fait passer la commande de EN_ATTENTE_COUTURIER à DEVIS_A_ACCEPTER
+   */
+  public tailorValidateAndIssueQuotation(params: {
+    confirmedClothingPrice?: Money;
+    advanceAmount?: Money;
+    targetDeliveryDate?: Date;
+    notes?: string;
+  }): void {
+    if (this.props.orderStatus !== OrderStatus.EN_ATTENTE_COUTURIER) {
+      throw new InvalidOrderStateTransitionError(
+        this.props.orderStatus,
+        OrderStatus.DEVIS_A_ACCEPTER,
+        'La commande doit être en attente de validation du couturier pour émettre le devis.'
+      );
+    }
+
+    if (params.confirmedClothingPrice) {
+      this.props.clothingPrice = params.confirmedClothingPrice;
+    }
+    const total = this.totalAmount;
+    this.props.advanceAmount = params.advanceAmount || total.percentage(40);
+    this.props.balanceAmount = total.subtract(this.props.advanceAmount);
+
+    if (params.targetDeliveryDate) {
+      this.props.targetDeliveryDate = params.targetDeliveryDate;
+    }
+    if (params.notes) {
+      this.props.notes = params.notes;
+    }
+
+    this.props.orderStatus = OrderStatus.DEVIS_A_ACCEPTER;
+    this.props.updatedAt = new Date();
+  }
 
   /**
    * Validation / Acceptation formelle du devis par le client
@@ -222,6 +261,44 @@ export class Order {
         tailorId: this.tailorId
       })
     );
+  }
+
+  /**
+   * Proposition d'un report de délai motivé par le couturier (Section 7 du CDC)
+   */
+  public proposeDelay(newDate: Date, reason: string): void {
+    if (this.props.orderStatus !== OrderStatus.EN_CONFECTION) {
+      throw new InvalidOrderStateTransitionError(
+        this.props.orderStatus,
+        'REPORT_PROPOSE',
+        'Un report de délai ne peut être proposé que pendant la confection.'
+      );
+    }
+    this.props.proposedDeliveryDate = newDate;
+    this.props.delayReason = reason;
+    this.props.delayStatus = 'PROPOSITION_ENVOYEE';
+    this.props.updatedAt = new Date();
+  }
+
+  /**
+   * Réponse du client à la proposition de report (sans contrainte d'échéance)
+   */
+  public respondToDelay(accepted: boolean): void {
+    if (this.props.delayStatus !== 'PROPOSITION_ENVOYEE') {
+      throw new InvalidOrderStateTransitionError(
+        this.props.delayStatus || 'AUCUN_REPORT',
+        'REPONSE_REPORT',
+        'Aucune proposition de report en attente de réponse.'
+      );
+    }
+
+    if (accepted && this.props.proposedDeliveryDate) {
+      this.props.targetDeliveryDate = this.props.proposedDeliveryDate;
+      this.props.delayStatus = 'ACCEPTEE';
+    } else {
+      this.props.delayStatus = 'REFUSEE';
+    }
+    this.props.updatedAt = new Date();
   }
 
   /**
@@ -325,8 +402,15 @@ export class Order {
       statuses: {
         order: this.props.orderStatus,
         payment: this.props.paymentStatus,
-        confectionStep: this.props.confectionStep
+        confectionStep: this.props.confectionStep,
+        delayStatus: this.props.delayStatus || 'AUCUN_REPORT'
       },
+      delayProposal: this.props.delayStatus ? {
+        status: this.props.delayStatus,
+        reason: this.props.delayReason,
+        proposedDate: this.props.proposedDeliveryDate?.toISOString()
+      } : undefined,
+      notes: this.props.notes,
       paymentRefs: {
         advance: this.props.advancePaymentRef,
         balance: this.props.balancePaymentRef

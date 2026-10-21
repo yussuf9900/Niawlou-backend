@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: niawlou-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_PREFIX
+        value: /api/v1
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false # Collez ici votre URL de base de données PostgreSQL Neon (ex: postgresql://...@ep-xxx.neon.tech/neondb?sslmode=require)
+      - key: ORANGE_MONEY_WEBHOOK_SECRET
+        value: om_webhook_signature_secret_key_sn
+      - key: DEFAULT_ADVANCE_PERCENTAGE
+        value: 40
+      - key: MAX_DISPUTE_HOURS
+        value: 48
+      - key: DEFAULT_DELIVERY_FEE
+        value: 1500

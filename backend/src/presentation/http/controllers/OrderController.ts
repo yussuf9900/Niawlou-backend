@@ -7,6 +7,9 @@ import { AcceptQuotationUseCase } from '../../../core/use-cases/orders/AcceptQuo
 import { UpdateConfectionStepUseCase } from '../../../core/use-cases/orders/UpdateConfectionStepUseCase.js';
 import { ConfirmDeliveryUseCase } from '../../../core/use-cases/orders/ConfirmDeliveryUseCase.js';
 import { OpenDisputeUseCase } from '../../../core/use-cases/orders/OpenDisputeUseCase.js';
+import { ValidateOrderAndIssueQuotationUseCase } from '../../../core/use-cases/orders/ValidateOrderAndIssueQuotationUseCase.js';
+import { ProposeDelayUseCase } from '../../../core/use-cases/orders/ProposeDelayUseCase.js';
+import { RespondToDelayUseCase } from '../../../core/use-cases/orders/RespondToDelayUseCase.js';
 import { ConfectionStep } from '../../../core/domain/value-objects/Statuses.js';
 
 const orderRepo = new PrismaOrderRepository();
@@ -14,8 +17,11 @@ const tailorRepo = new PrismaTailorRepository();
 const notifier = new ConsoleNotificationService();
 
 const createOrderUseCase = new CreateOrderUseCase(orderRepo, tailorRepo, notifier);
+const validateOrderUseCase = new ValidateOrderAndIssueQuotationUseCase(orderRepo, notifier);
 const acceptQuotationUseCase = new AcceptQuotationUseCase(orderRepo, notifier);
 const updateConfectionStepUseCase = new UpdateConfectionStepUseCase(orderRepo, notifier);
+const proposeDelayUseCase = new ProposeDelayUseCase(orderRepo, notifier);
+const respondToDelayUseCase = new RespondToDelayUseCase(orderRepo, notifier);
 const confirmDeliveryUseCase = new ConfirmDeliveryUseCase(orderRepo, notifier);
 const openDisputeUseCase = new OpenDisputeUseCase(orderRepo, notifier);
 
@@ -93,6 +99,31 @@ export class OrderController {
     }
   }
 
+  public static async validateAndIssueQuotation(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user || req.user.role !== 'COUTURIER') {
+        res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Seul le couturier peut valider cette commande et émettre le devis.' } });
+        return;
+      }
+
+      const order = await validateOrderUseCase.execute({
+        orderId: req.params.id,
+        tailorId: req.user.userId,
+        confirmedClothingPrice: req.body.confirmedClothingPrice ? Number(req.body.confirmedClothingPrice) : undefined,
+        advanceAmount: req.body.advanceAmount ? Number(req.body.advanceAmount) : undefined,
+        targetDeliveryDate: req.body.targetDeliveryDate,
+        notes: req.body.notes
+      });
+
+      res.status(200).json({
+        message: 'Commande validée par l\'atelier. Devis émis et transmis au client.',
+        order: order.toJSON()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   public static async acceptQuotation(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.user) {
@@ -108,6 +139,51 @@ export class OrderController {
 
       res.status(200).json({
         message: 'Devis accepté. Vous pouvez maintenant procéder au règlement de l\'acompte via Orange Money.',
+        order: order.toJSON()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async proposeDelay(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user || req.user.role !== 'COUTURIER') {
+        res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Seul le couturier peut proposer un report de délai.' } });
+        return;
+      }
+
+      const order = await proposeDelayUseCase.execute({
+        orderId: req.params.id,
+        tailorId: req.user.userId,
+        newDate: req.body.newDate,
+        reason: req.body.reason
+      });
+
+      res.status(200).json({
+        message: 'Proposition de report envoyée au client.',
+        order: order.toJSON()
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async respondToDelay(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Non authentifié' } });
+        return;
+      }
+
+      const order = await respondToDelayUseCase.execute({
+        orderId: req.params.id,
+        clientId: req.user.userId,
+        accepted: Boolean(req.body.accepted)
+      });
+
+      res.status(200).json({
+        message: req.body.accepted ? 'Report accepté avec succès.' : 'Report refusé par le client.',
         order: order.toJSON()
       });
     } catch (err) {

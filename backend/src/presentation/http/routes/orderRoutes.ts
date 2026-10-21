@@ -32,6 +32,22 @@ const updateStepSchema = z.object({
   step: z.enum(['NON_COMMENCEE', 'COUPE_ASSEMBLAGE', 'FINITIONS_CONTROLE', 'VETEMENT_PRET'])
 });
 
+const validateQuotationSchema = z.object({
+  confirmedClothingPrice: z.number().positive().optional(),
+  advanceAmount: z.number().positive().optional(),
+  targetDeliveryDate: z.string().optional(),
+  notes: z.string().optional()
+});
+
+const proposeDelaySchema = z.object({
+  newDate: z.string().min(5),
+  reason: z.string().min(5, 'Le motif du report doit être précisé')
+});
+
+const respondDelaySchema = z.object({
+  accepted: z.boolean()
+});
+
 const disputeSchema = z.object({
   reason: z.string().min(5, 'Le motif du litige ou de la retouche doit être précisé')
 });
@@ -112,6 +128,36 @@ router.get('/:id', authMiddleware, OrderController.getOrderById);
 
 /**
  * @openapi
+ * /orders/{id}/quotation/validate:
+ *   post:
+ *     summary: Valider la commande et émettre le devis définitif (Atelier Couturier)
+ *     description: Le couturier confirme la faisabilité, ajuste éventuellement le prix et la date de livraison promise.
+ *     tags: [Atelier & Confection]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               confirmedClothingPrice: { type: integer, example: 35000, description: 'Prix convenu façon et tissu' }
+ *               advanceAmount: { type: integer, example: 15000, description: 'Montant de l\'acompte requis' }
+ *               targetDeliveryDate: { type: string, format: date-time, example: '2026-11-06T18:00:00Z' }
+ *               notes: { type: string, example: 'Mesures validées, bazin terracotta sélectionné.' }
+ *     responses:
+ *       200:
+ *         description: Commande validée par l'atelier, devis prêt pour acceptation client
+ */
+router.post('/:id/quotation/validate', authMiddleware, requireRole('COUTURIER'), validateBody(validateQuotationSchema), OrderController.validateAndIssueQuotation);
+
+/**
+ * @openapi
  * /orders/{id}/quotation/accept:
  *   post:
  *     summary: Accepter le devis et engager la commande (Client)
@@ -163,6 +209,64 @@ router.post('/:id/quotation/accept', authMiddleware, OrderController.acceptQuota
  *         description: Étape de confection mise à jour
  */
 router.patch('/:id/step', authMiddleware, requireRole('COUTURIER'), validateBody(updateStepSchema), OrderController.updateStep);
+
+/**
+ * @openapi
+ * /orders/{id}/delay/propose:
+ *   post:
+ *     summary: Proposer un report de date avec motif en cas de retard (Atelier Couturier)
+ *     description: Soumis au consentement du client sans délai obligatoire imposé (CDC Section 7).
+ *     tags: [Atelier & Confection]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [newDate, reason]
+ *             properties:
+ *               newDate: { type: string, format: date-time, example: '2026-11-10T18:00:00Z' }
+ *               reason: { type: string, example: 'Attente réapprovisionnement fil doré de broderie' }
+ *     responses:
+ *       200:
+ *         description: Proposition de report transmise au client
+ */
+router.post('/:id/delay/propose', authMiddleware, requireRole('COUTURIER'), validateBody(proposeDelaySchema), OrderController.proposeDelay);
+
+/**
+ * @openapi
+ * /orders/{id}/delay/respond:
+ *   post:
+ *     summary: Répondre à une proposition de report (Client)
+ *     tags: [Commandes & Devis]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [accepted]
+ *             properties:
+ *               accepted: { type: boolean, example: true }
+ *     responses:
+ *       200:
+ *         description: Réponse enregistrée
+ */
+router.post('/:id/delay/respond', authMiddleware, validateBody(respondDelaySchema), OrderController.respondToDelay);
 
 /**
  * @openapi

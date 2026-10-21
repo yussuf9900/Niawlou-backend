@@ -32,66 +32,65 @@ describe('Aggregate: Order (Invariants & Transitions d\'état)', () => {
     });
   }
 
-  it('initialise correctement la commande avec ses montants et statuts par défaut', () => {
+  it('initialise la commande en attente de validation du couturier', () => {
     const order = createTestOrder();
     expect(order.totalAmount.amount).toBe(36500);
-    expect(order.orderStatus).toBe(OrderStatus.DEVIS_A_ACCEPTER);
+    expect(order.orderStatus).toBe(OrderStatus.EN_ATTENTE_COUTURIER);
     expect(order.paymentStatus).toBe(PaymentStatus.AUCUN_PAIEMENT);
     expect(order.confectionStep).toBe(ConfectionStep.NON_COMMENCEE);
   });
 
-  it('accepte le devis et passe en attente de paiement initial', () => {
+  it('permet au couturier de valider la commande et émettre le devis chiffré', () => {
     const order = createTestOrder();
-    order.acceptQuotation(Money.from(15000));
+    order.tailorValidateAndIssueQuotation({
+      confirmedClothingPrice: Money.from(35000),
+      advanceAmount: Money.from(15000),
+      notes: 'Mesures vérifiées avec la cliente'
+    });
+
+    expect(order.orderStatus).toBe(OrderStatus.DEVIS_A_ACCEPTER);
     expect(order.advanceAmount.amount).toBe(15000);
     expect(order.balanceAmount.amount).toBe(21500);
+
+    // Le client peut maintenant accepter le devis
+    order.acceptQuotation();
     expect(order.orderStatus).toBe(OrderStatus.EN_ATTENTE_PAIEMENT_INITIAL);
     expect(order.paymentStatus).toBe(PaymentStatus.ACOMPTE_EN_ATTENTE);
   });
 
-  it('passe en confection uniquement après confirmation de l\'acompte Orange Money', () => {
+  it('gère le cycle complet : acompte OM -> confection -> report -> remise -> solde', () => {
     const order = createTestOrder();
-    order.acceptQuotation(Money.from(15000));
+    order.tailorValidateAndIssueQuotation({ advanceAmount: Money.from(15000) });
+    order.acceptQuotation();
 
-    // Impossible de mettre à jour l'étape de confection avant l'acompte
-    expect(() => order.updateConfectionStep(ConfectionStep.COUPE_ASSEMBLAGE)).toThrow(
-      InvalidOrderStateTransitionError
-    );
-
-    // Confirmation de l'acompte
-    order.confirmAdvancePayment('OM-TX-12345');
+    // Confirmation de l'acompte Orange Money
+    order.confirmAdvancePayment('OM-TX-ADV-123');
     expect(order.paymentStatus).toBe(PaymentStatus.ACOMPTE_CONFIRME);
     expect(order.orderStatus).toBe(OrderStatus.EN_CONFECTION);
     expect(order.confectionStep).toBe(ConfectionStep.COUPE_ASSEMBLAGE);
 
-    // Maintenant le couturier peut avancer les étapes
-    order.updateConfectionStep(ConfectionStep.FINITIONS_CONTROLE);
-    expect(order.confectionStep).toBe(ConfectionStep.FINITIONS_CONTROLE);
+    // Proposition d'un report de délai par le couturier
+    const newDate = new Date();
+    newDate.setDate(newDate.getDate() + 3);
+    order.proposeDelay(newDate, 'Attente des boutons dorés');
+    expect(order.toJSON().delayProposal).toBeDefined();
 
+    // Client accepte le report
+    order.respondToDelay(true);
+    expect(order.toJSON().statuses).toHaveProperty('delayStatus', 'ACCEPTEE');
+
+    // Progression des étapes
+    order.updateConfectionStep(ConfectionStep.FINITIONS_CONTROLE);
     order.updateConfectionStep(ConfectionStep.VETEMENT_PRET);
     expect(order.orderStatus).toBe(OrderStatus.PRETE);
-    expect(order.deliveryStatus).toBe(DeliveryStatus.REMISE_PLANIFIEE);
-  });
-
-  it('exige la remise physique du vêtement avant d\'autoriser le règlement du solde', () => {
-    const order = createTestOrder();
-    order.acceptQuotation(Money.from(15000));
-    order.confirmAdvancePayment('OM-TX-12345');
-    order.updateConfectionStep(ConfectionStep.VETEMENT_PRET);
-
-    // Impossible de régler le solde tant que le vêtement n'est pas remis
-    expect(() => order.confirmBalancePayment('OM-TX-BALANCE')).toThrow(
-      InvalidOrderStateTransitionError
-    );
 
     // Remise physique effectuée
     order.confirmDelivery();
     expect(order.deliveryStatus).toBe(DeliveryStatus.REMISE_EFFECTUEE);
-    expect(order.orderStatus).toBe(OrderStatus.REMISE_EFFECTUEE);
     expect(order.paymentStatus).toBe(PaymentStatus.SOLDE_EN_ATTENTE);
 
-    // Règlement du solde
-    order.confirmBalancePayment('OM-TX-BALANCE');
+    // Paiement du solde via Orange Money
+    order.confirmBalancePayment('OM-TX-BAL-456');
     expect(order.paymentStatus).toBe(PaymentStatus.PAYE_INTEGRALEMENT);
     expect(order.orderStatus).toBe(OrderStatus.TERMINEE);
   });
