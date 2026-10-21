@@ -24,6 +24,7 @@ const loginSchema = z.object({
  * /auth/register:
  *   post:
  *     summary: Inscription d'un nouvel utilisateur (Client ou Couturier)
+ *     description: Utilisez votre propre téléphone et votre propre email. Les valeurs d'exemple ne sont pas des comptes à recréer.
  *     tags: [Auth & Profil]
  *     requestBody:
  *       required: true
@@ -35,14 +36,18 @@ const loginSchema = z.object({
  *             properties:
  *               name: { type: string, example: 'Awa Diop' }
  *               phone: { type: string, example: '+221771234542' }
- *               email: { type: string, example: 'awa.diop@example.sn' }
+ *               email: { type: string, example: 'votre.adresse@example.com' }
  *               password: { type: string, example: 'passer123' }
  *               role: { type: string, enum: ['CLIENT', 'COUTURIER'], example: 'CLIENT' }
  *     responses:
  *       201:
  *         description: Utilisateur créé avec succès et jeton JWT retourné
  *       409:
- *         description: Numéro de téléphone déjà utilisé
+ *         description: Téléphone ou email déjà utilisé (PHONE_ALREADY_USED ou EMAIL_ALREADY_USED)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/register', validateBody(registerSchema), AuthController.register);
 

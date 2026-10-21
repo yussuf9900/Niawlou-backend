@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { PrismaUserRepository } from '../../../infrastructure/database/PrismaUserRepository.js';
 import crypto from 'crypto';
+import { Prisma } from '@prisma/client';
 
 const userRepo = new PrismaUserRepository();
 const JWT_SECRET = process.env.JWT_SECRET || 'niawlou_super_secret_jwt_token_key_change_in_production_2026';
@@ -15,6 +16,14 @@ export class AuthController {
       if (existing) {
         res.status(409).json({
           error: { code: 'PHONE_ALREADY_USED', message: 'Ce numéro de téléphone est déjà associé à un compte.' }
+        });
+        return;
+      }
+
+      const existingEmail = await userRepo.findByEmail(email);
+      if (existingEmail) {
+        res.status(409).json({
+          error: { code: 'EMAIL_ALREADY_USED', message: 'Cette adresse email est déjà associée à un compte.' }
         });
         return;
       }
@@ -41,6 +50,20 @@ export class AuthController {
         user
       });
     } catch (err) {
+      // Handle concurrent registrations that pass the availability checks together.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        const target = err.meta?.target;
+        const fields = Array.isArray(target) ? target : [String(target || '')];
+        const emailConflict = fields.some(field => String(field).includes('email'));
+        const phoneConflict = fields.some(field => String(field).includes('phone'));
+        res.status(409).json({
+          error: {
+            code: emailConflict ? 'EMAIL_ALREADY_USED' : phoneConflict ? 'PHONE_ALREADY_USED' : 'ACCOUNT_ALREADY_EXISTS',
+            message: emailConflict ? 'Cette adresse email est déjà associée à un compte.' : phoneConflict ? 'Ce numéro de téléphone est déjà associé à un compte.' : 'Un compte utilise déjà ces informations.'
+          }
+        });
+        return;
+      }
       next(err);
     }
   }
