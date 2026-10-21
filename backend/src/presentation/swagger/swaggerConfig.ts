@@ -24,6 +24,10 @@ Cette API REST fournit l'ensemble des services pour la mini-application **NIAWLO
     },
     servers: [
       {
+        url: '/api/v1',
+        description: 'Serveur Actif (Détection automatique)'
+      },
+      {
         url: 'https://niawlou-backend.onrender.com/api/v1',
         description: 'Serveur de Production (Render)'
       },
