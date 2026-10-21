@@ -9,6 +9,12 @@ const options: swaggerJsdoc.Options = {
       title: 'NIAWLOU API — Mini-App Max It Orange (Challenge ODC)',
       version: '1.0.0',
       description: `
+### Générer et utiliser un token JWT
+1. Ouvrez **POST /auth/login**, cliquez sur **Try it out**, renseignez votre téléphone et votre mot de passe, puis **Execute**.
+2. Un token valable **7 jours** est retourné et Swagger active automatiquement **BearerAuth** pour les requêtes suivantes.
+3. Sans compte, utilisez **POST /auth/register** avec vos propres informations ; le token retourné est aussi appliqué automatiquement.
+Vous pouvez également cliquer sur **Authorize** et coller uniquement le token, sans le préfixe Bearer. Rechargez la page pour effacer la session Swagger.
+
 ### Plateforme de couture sur-mesure intégrée à Max It (Sonatel)
 Cette API REST fournit l'ensemble des services pour la mini-application **NIAWLOU** :
 - **Découverte & Modèles** : Ateliers locaux dakarois, catalogue de tenues traditionnelles et modernes (Bazin, Boubou, Cérémonie).
@@ -44,7 +50,7 @@ Cette API REST fournit l'ensemble des services pour la mini-application **NIAWLO
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
-          description: 'Authentification par jeton JWT. Entrez votre jeton sous le format: Bearer <votre_token>'
+          description: 'Authentification par jeton JWT. Collez uniquement le token JWT, sans le préfixe Bearer. Il est appliqué automatiquement après connexion ou inscription.'
         }
       },
       schemas: {

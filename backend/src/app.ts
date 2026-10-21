@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './presentation/swagger/swaggerConfig.js';
+import { authorizeSwaggerResponse } from './presentation/swagger/swaggerAuth.js';
 import authRoutes from './presentation/http/routes/authRoutes.js';
 import tailorRoutes from './presentation/http/routes/tailorRoutes.js';
 import orderRoutes from './presentation/http/routes/orderRoutes.js';
@@ -29,6 +30,9 @@ export function createApp(): express.Application {
     swaggerUi.serve,
     swaggerUi.setup(swaggerSpec, {
       customSiteTitle: 'NIAWLOU API — Documentation Swagger',
+      swaggerOptions: {
+        responseInterceptor: authorizeSwaggerResponse
+      },
       customCss: `
         .swagger-ui .topbar { background-color: #FF7900; }
         .swagger-ui .topbar .topbar-wrapper img { content: url('https://upload.wikimedia.org/wikipedia/commons/c/c8/Orange_logo.svg'); width: 40px; }

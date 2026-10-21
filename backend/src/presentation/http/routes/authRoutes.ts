@@ -50,7 +50,7 @@ router.post('/register', validateBody(registerSchema), AuthController.register);
  * @openapi
  * /auth/login:
  *   post:
- *     summary: Connexion utilisateur via téléphone et mot de passe
+ *     summary: Générer un token JWT (connexion par téléphone et mot de passe)
  *     tags: [Auth & Profil]
  *     requestBody:
  *       required: true
@@ -64,7 +64,15 @@ router.post('/register', validateBody(registerSchema), AuthController.register);
  *               password: { type: string, example: 'passer123' }
  *     responses:
  *       200:
- *         description: Connexion réussie avec token JWT
+ *         description: Token JWT valable 7 jours, appliqué automatiquement dans Swagger
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token: { type: string, description: 'Token JWT à utiliser avec BearerAuth' }
+ *                 message: { type: string }
+ *                 user: { type: object }
  *       401:
  *         description: Identifiants invalides
  */
