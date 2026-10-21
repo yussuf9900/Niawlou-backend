@@ -48,6 +48,17 @@ async function main() {
     }
   });
 
+  // 3. Création d'un Administrateur démo (Mamadou Fall - ODC / Sonatel)
+  const adminUser = await prisma.user.create({
+    data: {
+      name: 'Mamadou Fall',
+      phone: '+221770000001',
+      email: 'admin@niawlou.sn',
+      passwordHash,
+      role: 'ADMIN'
+    }
+  });
+
   const tailorProfile = await prisma.tailorProfile.create({
     data: {
       userId: tailorUser.id,
@@ -140,6 +151,7 @@ async function main() {
   console.log('✅ Base de données initialisée avec succès !');
   console.log(`👤 Client: Awa Diop (${clientAwa.phone})`);
   console.log(`✂️ Couturier: Maison Aïssatou (${tailorUser.phone})`);
+  console.log(`🛡️ Admin: Mamadou Fall (${adminUser.phone})`);
   console.log(`👗 Modèle: ${modelRobeNala.title} (35 000 FCFA)`);
   console.log(`📦 Commande maquette: ${orderNia0248.orderReference} (Étape: ${orderNia0248.confectionStep})`);
 }

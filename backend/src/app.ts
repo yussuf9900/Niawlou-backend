@@ -6,6 +6,7 @@ import authRoutes from './presentation/http/routes/authRoutes.js';
 import tailorRoutes from './presentation/http/routes/tailorRoutes.js';
 import orderRoutes from './presentation/http/routes/orderRoutes.js';
 import paymentRoutes from './presentation/http/routes/paymentRoutes.js';
+import adminRoutes from './presentation/http/routes/adminRoutes.js';
 import { errorHandler } from './presentation/http/middlewares/errorHandler.js';
 
 export function createApp(): express.Application {
@@ -53,6 +54,7 @@ export function createApp(): express.Application {
   app.use(`${apiPrefix}/tailors`, tailorRoutes);
   app.use(`${apiPrefix}/orders`, orderRoutes);
   app.use(`${apiPrefix}/payments`, paymentRoutes);
+  app.use(`${apiPrefix}/admin`, adminRoutes);
 
   // Gestionnaire d'erreurs centralisé
   app.use(errorHandler);
