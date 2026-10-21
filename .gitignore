@@ -1,0 +1,39 @@
+# Logs & Dépendances
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Environnement & Données sensibles
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Build & Compilation
+dist/
+build/
+*.tsbuildinfo
+
+# Bases de données locales & cache
+*.sqlite
+*.sqlite-journal
+*.db
+*.db-journal
+.prisma/client/
+
+# IDE & OS
+.DS_Store
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Tests & Couverture
+coverage/
+.nyc_output/
