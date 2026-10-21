@@ -1,6 +1,8 @@
 import swaggerJsdoc from 'swagger-jsdoc';
+import path from 'node:path';
 
 const options: swaggerJsdoc.Options = {
+  failOnErrors: true,
   definition: {
     openapi: '3.0.3',
     info: {
@@ -125,7 +127,8 @@ Cette API REST fournit l'ensemble des services pour la mini-application **NIAWLO
       { name: 'Litiges & Retouches', description: 'Signalement de non-conformité et retouches sous 48h' }
     ]
   },
-  apis: ['./src/presentation/http/routes/*.ts']
+  // Resolve beside this module in both src (tsx) and dist (Node), regardless of cwd.
+  apis: [path.join(__dirname, '../http/routes/*.{ts,js}').replace(/\\/g, '/')]
 };
 
 export const swaggerSpec = swaggerJsdoc(options);

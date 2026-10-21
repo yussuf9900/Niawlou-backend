@@ -25,11 +25,11 @@ const createModelSchema = z.object({
  *       - in: query
  *         name: location
  *         schema: { type: string }
- *         description: Filtrer par quartier/ville (ex: Sacré-Cœur, Dakar)
+ *         description: "Filtrer par quartier/ville (ex: Sacré-Cœur, Dakar)"
  *       - in: query
  *         name: specialty
  *         schema: { type: string }
- *         description: Filtrer par spécialité (ex: Bazin, Broderie)
+ *         description: "Filtrer par spécialité (ex: Bazin, Broderie)"
  *     responses:
  *       200:
  *         description: Liste des ateliers avec notes et coordonnées

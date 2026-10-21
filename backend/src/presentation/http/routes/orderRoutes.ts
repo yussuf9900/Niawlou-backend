@@ -100,7 +100,7 @@ router.post('/', authMiddleware, validateBody(createOrderSchema), OrderControlle
  *       - in: query
  *         name: status
  *         schema: { type: string }
- *         description: Filtrer par statut (ex: EN_CONFECTION, PRETE, TERMINEE)
+ *         description: "Filtrer par statut (ex: EN_CONFECTION, PRETE, TERMINEE)"
  *     responses:
  *       200:
  *         description: Liste des commandes
@@ -147,7 +147,7 @@ router.get('/:id', authMiddleware, OrderController.getOrderById);
  *             type: object
  *             properties:
  *               confirmedClothingPrice: { type: integer, example: 35000, description: 'Prix convenu façon et tissu' }
- *               advanceAmount: { type: integer, example: 15000, description: 'Montant de l\'acompte requis' }
+ *               advanceAmount: { type: integer, example: 15000, description: "Montant de l'acompte requis" }
  *               targetDeliveryDate: { type: string, format: date-time, example: '2026-11-06T18:00:00Z' }
  *               notes: { type: string, example: 'Mesures validées, bazin terracotta sélectionné.' }
  *     responses:
@@ -175,7 +175,7 @@ router.post('/:id/quotation/validate', authMiddleware, requireRole('COUTURIER'),
  *           schema:
  *             type: object
  *             properties:
- *               customAdvanceAmount: { type: integer, example: 15000, description: 'Montant de l\'acompte si ajusté' }
+ *               customAdvanceAmount: { type: integer, example: 15000, description: "Montant de l'acompte si ajusté" }
  *     responses:
  *       200:
  *         description: Devis accepté, prêt pour paiement Orange Money
