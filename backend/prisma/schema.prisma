@@ -1,0 +1,128 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String        @id @default(uuid())
+  name         String
+  phone        String        @unique
+  email        String        @unique
+  passwordHash String
+  role         String        @default("CLIENT") // CLIENT, COUTURIER, ADMIN
+  measurements String?       // JSON sérialisé des mensurations personnelles
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  tailorProfile TailorProfile?
+  clientOrders  Order[]       @relation("ClientOrders")
+  tailorOrders  Order[]       @relation("TailorOrders")
+}
+
+model TailorProfile {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  atelierName          String
+  location             String   // ex: "Sacré-Cœur, Dakar"
+  address              String
+  specialties          String   // Séparés par virgule, ex: "Bazin, Broderie, Cérémonie"
+  bio                  String
+  rating               Float    @default(4.8)
+  completedOrdersCount Int      @default(0)
+  phone                String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  models Model[]
+}
+
+model Model {
+  id           String   @id @default(uuid())
+  tailorId     String
+  title        String
+  description  String
+  category     String   // FEMME, HOMME, CEREMONIE, BOUBOU, ENFANT
+  price        Int      // en FCFA
+  fabricOption String   @default("CHOICE_AT_ATELIER") // PROVIDED_BY_CLIENT, PROVIDED_BY_TAILOR, CHOICE_AT_ATELIER
+  images       String   // JSON tableau d'URLs d'images
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tailor TailorProfile @relation(fields: [tailorId], references: [id], onDelete: Cascade)
+  orders Order[]
+}
+
+model Order {
+  id                   String    @id @default(uuid())
+  orderReference       String    @unique // ex: "NIA-0248"
+  clientId             String
+  tailorId             String
+  modelId              String?
+  title                String
+  description          String?
+  
+  clothingPrice        Int       // en FCFA
+  deliveryFee          Int       // en FCFA (1500 si domicile, 0 si atelier)
+  totalAmount          Int       // en FCFA
+  advanceAmount        Int       // en FCFA (acompte)
+  balanceAmount        Int       // en FCFA (solde)
+  
+  deliveryMode         String    @default("ATELIER") // ATELIER, DOMICILE
+  deliveryAddress      String?
+  deliveryStatus       String    @default("A_DEFINIR") // A_DEFINIR, REMISE_PLANIFIEE, REMISE_EFFECTUEE, CLIENT_ABSENT
+  
+  orderStatus          String    @default("DEVIS_A_ACCEPTER")
+  paymentStatus        String    @default("AUCUN_PAIEMENT")
+  confectionStep       String    @default("NON_COMMENCEE")
+  
+  measurementsSnapshot String    // JSON figé des mensurations de cette commande
+  
+  targetDeliveryDate   DateTime?
+  deliveredAt          DateTime?
+  
+  advancePaymentRef    String?
+  balancePaymentRef    String?
+  notes                String?
+  
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  client        User                 @relation("ClientOrders", fields: [clientId], references: [id])
+  tailor        User                 @relation("TailorOrders", fields: [tailorId], references: [id])
+  model         Model?               @relation(fields: [modelId], references: [id])
+  transactions  PaymentTransaction[]
+  disputes      Dispute[]
+}
+
+model PaymentTransaction {
+  id             String    @id @default(uuid())
+  orderId        String
+  transactionRef String    @unique // ex: "OM-DEMO-0248-ADV"
+  amount         Int       // en FCFA
+  type           String    // ADVANCE, BALANCE
+  status         String    @default("PENDING") // PENDING, SUCCESS, FAILED
+  paymentToken   String?
+  confirmedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Dispute {
+  id          String    @id @default(uuid())
+  orderId     String
+  initiatorId String
+  reason      String
+  status      String    @default("OUVERT") // OUVERT, EN_EXAMEN, RESOLU, CLOTURE
+  resolution  String?
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
