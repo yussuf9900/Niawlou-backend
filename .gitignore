@@ -37,3 +37,9 @@ build/
 # Tests & Couverture
 coverage/
 .nyc_output/
+
+# Fichiers de présentation & documents volumineux (hors dépôt Git)
+*.pdf
+*.jpeg
+*.jpg
+*.png
